@@ -103,9 +103,10 @@ def show_samples(VPTR_Enc, VPTR_Dec, sample, save_dir, renorm_transform):
         idx = min(N, 4)
         visualize_batch_clips(past_frames[0:idx, :, ...], rec_future_frames[0:idx, :, ...], rec_past_frames[0:idx, :, ...], save_dir, renorm_transform, desc = 'ae')
 
-if __name__ == '__main__':
-    ckpt_save_dir = Path('/home/travail/xiyex/VPTR_ckpts/MNIST_ResNetAE_MSEGDLgan_ckpt')
-    tensorboard_save_dir = Path('/home/travail/xiyex/VPTR_ckpts/MNIST_ResNetAE_MSEGDLgan_tensorboard')
+def run_file():
+    print("Started running")
+    ckpt_save_dir = Path('checkpoints/MNIST_ResNetAE_MSEGDLgan_ckpt')
+    tensorboard_save_dir = Path('checkpoints/MNIST_ResNetAE_MSEGDLgan_tensorboard')
 
     #resume_ckpt = ckpt_save_dir.joinpath('epoch_45.tar')
     resume_ckpt = None
@@ -123,11 +124,13 @@ if __name__ == '__main__':
     device = torch.device('cuda:0')
 
     #####################Init Dataset ###########################
-    data_set_name = 'KTH' #see utils.dataset
-    dataset_dir = '/home/travail/xiyex/KTH'
+    print("Initializing datasets")
+    data_set_name = 'MNIST' #see utils.dataset
+    dataset_dir = 'MovingMnist/moving-mnist-example'
     train_loader, val_loader, test_loader, renorm_transform = get_dataloader(data_set_name, N, dataset_dir, num_past_frames, num_future_frames)
 
     #####################Init Models and Optimizer ###########################
+    print("Initializing model and optimizers")
     VPTR_Enc = VPTREnc(img_channels, feat_dim = encC, n_downsampling = 3).to(device)
     VPTR_Dec = VPTRDec(img_channels, feat_dim = encC, n_downsampling = 3, out_layer = 'Tanh').to(device) #Sigmoid for MNIST, Tanh for KTH and BAIR
     VPTR_Disc = VPTRDisc(img_channels, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d).to(device)
@@ -146,6 +149,7 @@ if __name__ == '__main__':
     print(f"Discriminator num_parameters: {Disc_parameters}")
 
     #####################Init Criterion ###########################
+    print("Initializing criterion")
     loss_name_list = ['AE_MSE', 'AE_GDL', 'AE_total', 'Dtotal', 'Dfake', 'Dreal', 'AEgan']
     gan_loss = GANLoss('vanilla', target_real_label=1.0, target_fake_label=0.0).to(device)
     loss_dict = init_loss_dict(loss_name_list)
@@ -158,7 +162,8 @@ if __name__ == '__main__':
                                                 loss_name_list, resume_ckpt)
 
 
-    #####################Training loop ###########################                                            
+    #####################Training loop ###########################
+    print("Started training loop")
     for epoch in range(start_epoch+1, start_epoch + epochs+1):
         epoch_st = datetime.now()
         
@@ -171,7 +176,7 @@ if __name__ == '__main__':
         loss_dict = EpochAveMeter.epoch_update(loss_dict, epoch, train_flag = True)
         write_summary(summary_writer, loss_dict, train_flag = True)
         
-        show_samples(VPTR_Enc, VPTR_Dec, sample, ckpt_save_dir.joinpath(f'train_gifs_epoch{epoch}'), renorm_transform)
+        # show_samples(VPTR_Enc, VPTR_Dec, sample, ckpt_save_dir.joinpath(f'train_gifs_epoch{epoch}'), renorm_transform)
         
         #validation
         EpochAveMeter = AverageMeters(loss_name_list)
